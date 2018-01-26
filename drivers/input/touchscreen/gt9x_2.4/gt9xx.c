@@ -2019,7 +2019,8 @@ static void goodix_ts_suspend(struct goodix_ts_data *ts)
 	s8 ret = -1;    
 	
 	GTP_DEBUG_FUNC();
-	if(ts->gtp_is_suspend)
+	msleep(5000);
+	if (ts->gtp_is_suspend)
 		return;
 	if (ts->enter_update) {
 		return;
