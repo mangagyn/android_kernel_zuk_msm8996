@@ -40,6 +40,11 @@
 #include <linux/ktime.h>
 #include <linux/pmic-voter.h>
 
+#ifdef CONFIG_FAST_CHARGE
+#include <linux/Fast_Charge.h>
+#endif
+
+
 /* Mask/Bit helpers */
 #define _SMB_MASK(BITS, POS) \
 	((unsigned char)(((1 << (BITS)) - 1) << (POS)))
@@ -3879,34 +3884,47 @@ static int smbchg_config_chg_battery_type(struct smbchg_chip *chip)
 		}
 		chip->iterm_ma = iterm_ua / 1000;
 	}
-
-	/*
-	 * Only configure from profile if fastchg-ma is not defined in the
-	 * charger device node.
-	 */
-	if (!of_find_property(chip->spmi->dev.of_node,
-				"qcom,fastchg-current-ma", NULL)) {
-		rc = of_property_read_u32(profile_node,
-				"qcom,fastchg-current-ma", &fastchg_ma);
-		if (rc) {
-			ret = rc;
-		} else {
-			pr_smb(PR_MISC,
-				"fastchg-ma changed from to %dma for battery-type %s\n",
-				fastchg_ma, chip->battery_type);
-			rc = vote(chip->fcc_votable, BATT_TYPE_FCC_VOTER, true,
-							fastchg_ma);
-			if (rc < 0) {
-				dev_err(chip->dev,
-					"Couldn't vote for fastchg current rc=%d\n",
-					rc);
-				return rc;
-			}
-		}
-	}
-
-	return ret;
+#ifdef CONFIG_FAST_CHARGE	
+fastchg_ma = custom_current;
+pr_smb(PR_MISC,
+		"fastchg-ma changed from to %dma for battery-type %s\n",
+		fastchg_ma, chip->battery_type);
+rc = vote(chip->fcc_votable, BATT_TYPE_FCC_VOTER, true,
+					fastchg_ma);
+if (rc < 0) {
+		dev_err(chip->dev,
+			"Couldn't vote for fastchg current rc=%d\n", rc);
+		return rc;
+ 	}
+ 	return ret;
 }
+#else
+       /*
+        * Only configure from profile if fastchg-ma is not defined in the
+        * charger device node.
+        */
+       if (!of_find_property(chip->spmi->dev.of_node,
+                               "qcom,fastchg-current-ma", NULL)) {
+               rc = of_property_read_u32(profile_node,
+                               "qcom,fastchg-current-ma", &fastchg_ma);
+               if (rc) {
+                       ret = rc;
+               } else {
+                       pr_smb(PR_MISC,
+                               "fastchg-ma changed from to %dma for battery-type %s\n",
+                               fastchg_ma, chip->battery_type);
+                       rc = vote(chip->fcc_votable, BATT_TYPE_FCC_VOTER, true,
+                                                       fastchg_ma);
+                       if (rc < 0) {
+                               dev_err(chip->dev,
+                                       "Couldn't vote for fastchg current rc=%d\n",
+                                       rc);
+                               return rc;
+                       }}}
+return ret;
+ }
+#endif
+
 
 #define MAX_INV_BATT_ID		7700
 #define MIN_INV_BATT_ID		7300
